@@ -107,6 +107,14 @@ scrape_configs:
     scrape_interval: 30s
 ```
 
+## Grafana Dashboard
+
+A pre-built Grafana dashboard is included in [`grafana/dashboard.json`](grafana/dashboard.json).
+
+Import it via **Dashboards > Import > Upload JSON file**.
+
+![Dashboard](dashboard.jpg)
+
 ## Notes
 
 - Use the **local router password**, not your TP-Link ID password
