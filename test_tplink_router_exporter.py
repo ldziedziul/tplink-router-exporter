@@ -11,6 +11,9 @@ from tplink_router_exporter import (
     TPLinkCollector,
     MetricsHandler,
     get_connection_label,
+    resolve_hostnames_batch,
+    get_device_hostname,
+    _is_generic_hostname,
 )
 
 
@@ -31,6 +34,80 @@ class TestConnectionLabel(unittest.TestCase):
 
     def test_none(self):
         self.assertEqual(get_connection_label(None), "unknown")
+
+
+class TestResolveHostname(unittest.TestCase):
+    """Tests for hostname resolution functions."""
+
+    def test_is_generic_hostname(self):
+        """Test generic hostname detection."""
+        self.assertTrue(_is_generic_hostname("network device"))
+        self.assertTrue(_is_generic_hostname("Network Device"))
+        self.assertTrue(_is_generic_hostname("unknown"))
+        self.assertTrue(_is_generic_hostname(""))
+        self.assertTrue(_is_generic_hostname(None))
+        self.assertFalse(_is_generic_hostname("my-laptop"))
+        self.assertFalse(_is_generic_hostname("printer"))
+
+    def test_get_device_hostname_returns_hostname_when_valid(self):
+        """Hostname is returned as-is when it's a real name."""
+        device = MockDevice(hostname="my-laptop", ipaddr="192.168.0.10")
+        result = get_device_hostname(device, {})
+        self.assertEqual(result, "my-laptop")
+
+    def test_get_device_hostname_uses_resolved(self):
+        """Uses resolved hostname when available."""
+        device = MockDevice(hostname="network device", ipaddr="192.168.0.10")
+        resolved = {"192.168.0.10": "mydevice.local"}
+        result = get_device_hostname(device, resolved)
+        self.assertEqual(result, "mydevice.local")
+
+    def test_get_device_hostname_fallback_to_unknown(self):
+        """Returns 'unknown' when no hostname and no resolution."""
+        device = MockDevice(hostname=None, ipaddr="192.168.0.10")
+        result = get_device_hostname(device, {})
+        self.assertEqual(result, "unknown")
+
+    @patch("tplink_router_exporter.socket.gethostbyaddr")
+    def test_batch_resolve_parallel(self, mock_gethostbyaddr):
+        """Batch resolves hostnames in parallel."""
+        mock_gethostbyaddr.return_value = ("resolved.local", [], ["192.168.0.10"])
+        devices = [
+            MockDevice(hostname="network device", ipaddr="192.168.0.10"),
+            MockDevice(hostname="network device", ipaddr="192.168.0.11"),
+            MockDevice(hostname="my-laptop", ipaddr="192.168.0.12"),  # Should skip
+        ]
+        result = resolve_hostnames_batch(devices)
+        self.assertEqual(result.get("192.168.0.10"), "resolved.local")
+        self.assertEqual(result.get("192.168.0.11"), "resolved.local")
+        self.assertNotIn("192.168.0.12", result)
+
+    @patch("tplink_router_exporter.socket.gethostbyaddr")
+    def test_batch_resolve_handles_failure(self, mock_gethostbyaddr):
+        """Handles DNS failures gracefully."""
+        import socket
+        mock_gethostbyaddr.side_effect = socket.herror("Host not found")
+        devices = [MockDevice(hostname="network device", ipaddr="192.168.0.10")]
+        result = resolve_hostnames_batch(devices)
+        self.assertEqual(result, {})
+
+    def test_batch_resolve_skips_zero_ip(self):
+        """Skips DNS lookup for 0.0.0.0 IP."""
+        devices = [MockDevice(hostname="network device", ipaddr="0.0.0.0")]
+        result = resolve_hostnames_batch(devices)
+        self.assertEqual(result, {})
+
+    @patch("tplink_router_exporter._reverse_dns_lookup")
+    def test_batch_resolve_timeout(self, mock_lookup):
+        """Returns empty for timed out lookups."""
+        import time
+        def slow_lookup(ip):
+            time.sleep(1)  # Longer than 100ms timeout
+            return (ip, "slow.local")
+        mock_lookup.side_effect = slow_lookup
+        devices = [MockDevice(hostname="network device", ipaddr="192.168.0.10")]
+        result = resolve_hostnames_batch(devices)
+        self.assertEqual(result, {})
 
 
 class MockDevice:

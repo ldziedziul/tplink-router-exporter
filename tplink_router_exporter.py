@@ -11,7 +11,9 @@ Usage:
 """
 
 import argparse
+import concurrent.futures
 import logging
+import socket
 import sys
 import time
 from typing import Optional
@@ -68,6 +70,68 @@ def get_connection_label(conn_type: Optional[Connection]) -> str:
     if conn_type is None:
         return "unknown"
     return CONNECTION_LABELS.get(conn_type, "unknown")
+
+
+DNS_TIMEOUT_MS = 200
+GENERIC_HOSTNAMES = {"network device", "unknown", ""}
+
+
+def _is_generic_hostname(hostname: Optional[str]) -> bool:
+    """Check if hostname is generic and should trigger DNS lookup."""
+    return not hostname or hostname.lower() in GENERIC_HOSTNAMES
+
+
+def _reverse_dns_lookup(ip_addr: str) -> tuple[str, Optional[str]]:
+    """Perform reverse DNS lookup. Returns (ip, resolved_name or None)."""
+    try:
+        dns_name, _, _ = socket.gethostbyaddr(ip_addr)
+        return (ip_addr, dns_name)
+    except (socket.herror, socket.gaierror, OSError):
+        return (ip_addr, None)
+
+
+def resolve_hostnames_batch(devices) -> dict[str, str]:
+    """Resolve hostnames for devices with generic names in parallel.
+
+    Returns a dict mapping IP addresses to resolved hostnames.
+    DNS lookups are performed in parallel with a short timeout.
+    """
+    # Find devices that need DNS resolution
+    ips_to_resolve = [
+        d.ipaddr for d in devices
+        if _is_generic_hostname(d.hostname)
+        and d.ipaddr
+        and d.ipaddr != "0.0.0.0"
+    ]
+
+    if not ips_to_resolve:
+        return {}
+
+    resolved = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(ips_to_resolve)) as executor:
+        futures = {executor.submit(_reverse_dns_lookup, ip): ip for ip in ips_to_resolve}
+        done, _ = concurrent.futures.wait(futures, timeout=DNS_TIMEOUT_MS / 1000)
+
+        for future in done:
+            try:
+                ip, dns_name = future.result(timeout=0)
+                if dns_name:
+                    resolved[ip] = dns_name
+            except Exception:
+                pass
+
+    return resolved
+
+
+def get_device_hostname(device, resolved_hostnames: dict[str, str]) -> str:
+    """Get hostname for device, using resolved DNS names for generic hostnames."""
+    if not _is_generic_hostname(device.hostname):
+        return device.hostname
+
+    if device.ipaddr and device.ipaddr in resolved_hostnames:
+        return resolved_hostnames[device.ipaddr]
+
+    return device.hostname or "unknown"
 
 
 class TPLinkCollector:
@@ -252,10 +316,13 @@ class TPLinkCollector:
             labels=device_labels
         )
 
+        # Resolve DNS names in parallel for devices with generic hostnames
+        resolved_hostnames = resolve_hostnames_batch(status.devices)
+
         for device in status.devices:
             labels = [
                 device.macaddr or 'unknown',
-                device.hostname or 'unknown',
+                get_device_hostname(device, resolved_hostnames),
                 device.ipaddr or 'unknown',
                 get_connection_label(device.type)
             ]
