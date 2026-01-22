@@ -1,2 +1,2 @@
-tplinkrouterc6u>=4.0.0
+tplinkrouterc6u>=5.13.0
 prometheus-client>=0.17.0
