@@ -244,6 +244,26 @@ class TestTPLinkCollector(unittest.TestCase):
         scrape_success = next(m for m in metrics if m.name == "tplink_scrape_success")
         self.assertEqual(scrape_success.samples[0].value, 0)
 
+    @patch("tplink_router_exporter.TplinkRouterProvider")
+    def test_collect_with_node_label(self, mock_provider):
+        """Test metrics include node label when set."""
+        mock_router = MagicMock()
+        mock_provider.get_client.return_value = mock_router
+        mock_router.get_status.return_value = MockStatus()
+
+        collector = TPLinkCollector(
+            host="192.168.0.1",
+            password="testpass",
+            node_label="main",
+        )
+
+        metrics = list(collector.collect())
+
+        # Check that router_info has node label
+        router_info = next(m for m in metrics if m.name == "tplink_router_info")
+        self.assertIn("node", router_info.samples[0].labels)
+        self.assertEqual(router_info.samples[0].labels["node"], "main")
+
 
 class TestMetricsHandler(unittest.TestCase):
     """Tests for MetricsHandler class."""

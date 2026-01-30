@@ -173,11 +173,13 @@ def get_device_hostname(device, resolved_hostnames: dict[str, str]) -> str:
 class TPLinkCollector:
     """Custom Prometheus collector for TP-Link router metrics."""
 
-    def __init__(self, host: str, password: str, username: str = "admin", verify_ssl: bool = False):
+    def __init__(self, host: str, password: str, username: str = "admin",
+                 verify_ssl: bool = False, node_label: Optional[str] = None):
         self.host = host
         self.password = password
         self.username = username
         self.verify_ssl = verify_ssl
+        self.node_label = node_label
         self._last_scrape_success = False
         self._last_scrape_duration = 0.0
 
@@ -229,20 +231,24 @@ class TPLinkCollector:
             yield scrape_duration
             return
 
-        # Router info
+        # Router info - add node label if present
+        info_labels = ['wan_ip', 'lan_ip', 'connection_type']
+        info_values = [
+            status.wan_ipv4_addr or '',
+            status.lan_ipv4_addr or '',
+            status.conn_type or ''
+        ]
+
+        if self.node_label:
+            info_labels.append('node')
+            info_values.append(self.node_label)
+
         router_info = GaugeMetricFamily(
             'tplink_router_info',
             'Router information',
-            labels=['wan_ip', 'lan_ip', 'connection_type']
+            labels=info_labels
         )
-        router_info.add_metric(
-            [
-                status.wan_ipv4_addr or '',
-                status.lan_ipv4_addr or '',
-                status.conn_type or ''
-            ],
-            1
-        )
+        router_info.add_metric(info_values, 1)
         yield router_info
 
         # CPU usage
