@@ -37,7 +37,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "tplink_router_info",
+          "expr": "tplink_router_info{instance=~\"$instance\"}",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -68,7 +68,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "tplink_router_info",
+          "expr": "tplink_router_info{instance=~\"$instance\"}",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -108,7 +108,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "tplink_cpu_usage_ratio",
+          "expr": "tplink_cpu_usage_ratio{instance=~\"$instance\"}",
           "refId": "A"
         }
       ],
@@ -146,7 +146,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "tplink_memory_usage_ratio",
+          "expr": "tplink_memory_usage_ratio{instance=~\"$instance\"}",
           "refId": "A"
         }
       ],
@@ -181,7 +181,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "tplink_scrape_success",
+          "expr": "tplink_scrape_success{instance=~\"$instance\"}",
           "refId": "A"
         }
       ],
@@ -218,7 +218,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "tplink_scrape_duration_seconds",
+          "expr": "tplink_scrape_duration_seconds{instance=~\"$instance\"}",
           "refId": "A"
         }
       ],
@@ -248,7 +248,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "tplink_clients_total",
+          "expr": "tplink_clients_total{instance=~\"$instance\"}",
           "refId": "A"
         }
       ],
@@ -278,7 +278,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "tplink_wifi_clients_total",
+          "expr": "tplink_wifi_clients_total{instance=~\"$instance\"}",
           "refId": "A"
         }
       ],
@@ -308,7 +308,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "tplink_wired_clients_total",
+          "expr": "tplink_wired_clients_total{instance=~\"$instance\"}",
           "refId": "A"
         }
       ],
@@ -338,7 +338,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "tplink_guest_clients_total",
+          "expr": "tplink_guest_clients_total{instance=~\"$instance\"}",
           "refId": "A"
         }
       ],
@@ -369,7 +369,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "tplink_wifi_enabled{network_type=\"host\"}",
+          "expr": "tplink_wifi_enabled{network_type=\"host\",instance=~\"$instance\"}",
           "legendFormat": "{{band}}",
           "refId": "A"
         }
@@ -425,12 +425,12 @@
       },
       "targets": [
         {
-          "expr": "tplink_cpu_usage_ratio",
+          "expr": "tplink_cpu_usage_ratio{instance=~\"$instance\"}",
           "legendFormat": "CPU",
           "refId": "A"
         },
         {
-          "expr": "tplink_memory_usage_ratio",
+          "expr": "tplink_memory_usage_ratio{instance=~\"$instance\"}",
           "legendFormat": "Memory",
           "refId": "B"
         }
@@ -476,17 +476,17 @@
       },
       "targets": [
         {
-          "expr": "tplink_clients_total",
+          "expr": "tplink_clients_total{instance=~\"$instance\"}",
           "legendFormat": "Total",
           "refId": "A"
         },
         {
-          "expr": "tplink_wifi_clients_total",
+          "expr": "tplink_wifi_clients_total{instance=~\"$instance\"}",
           "legendFormat": "WiFi",
           "refId": "B"
         },
         {
-          "expr": "tplink_wired_clients_total",
+          "expr": "tplink_wired_clients_total{instance=~\"$instance\"}",
           "legendFormat": "Wired",
           "refId": "C"
         }
@@ -576,25 +576,25 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "tplink_device_active",
+          "expr": "tplink_device_active{instance=~\"$instance\"}",
           "format": "table",
           "instant": true,
           "refId": "A"
         },
         {
-          "expr": "tplink_device_signal_dbm",
+          "expr": "tplink_device_signal_dbm{instance=~\"$instance\"}",
           "format": "table",
           "instant": true,
           "refId": "B"
         },
         {
-          "expr": "tplink_device_download_speed_bytes",
+          "expr": "tplink_device_download_speed_bytes{instance=~\"$instance\"}",
           "format": "table",
           "instant": true,
           "refId": "C"
         },
         {
-          "expr": "tplink_device_upload_speed_bytes",
+          "expr": "tplink_device_upload_speed_bytes{instance=~\"$instance\"}",
           "format": "table",
           "instant": true,
           "refId": "D"
@@ -711,7 +711,7 @@
       },
       "targets": [
         {
-          "expr": "tplink_device_download_speed_bytes",
+          "expr": "tplink_device_download_speed_bytes{instance=~\"$instance\"}",
           "legendFormat": "{{hostname}} ({{ip}})",
           "refId": "A"
         }
@@ -758,7 +758,7 @@
       },
       "targets": [
         {
-          "expr": "tplink_device_upload_speed_bytes",
+          "expr": "tplink_device_upload_speed_bytes{instance=~\"$instance\"}",
           "legendFormat": "{{hostname}} ({{ip}})",
           "refId": "A"
         }
@@ -804,7 +804,7 @@
       },
       "targets": [
         {
-          "expr": "tplink_device_signal_dbm",
+          "expr": "tplink_device_signal_dbm{instance=~\"$instance\"}",
           "legendFormat": "{{hostname}} ({{ip}})",
           "refId": "A"
         }
@@ -831,6 +831,26 @@
         "regex": "",
         "skipUrlSync": false,
         "type": "datasource"
+      },
+      {
+        "current": {},
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "definition": "label_values(tplink_scrape_success, instance)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Instance",
+        "multi": true,
+        "name": "instance",
+        "options": [],
+        "query": {
+          "query": "label_values(tplink_scrape_success, instance)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
       }
     ]
   },
