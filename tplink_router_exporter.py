@@ -410,6 +410,13 @@ class MetricsHandler(BaseHTTPRequestHandler):
         """Override to use logger instead of stderr."""
         logger.debug("%s - %s", self.address_string(), format % args)
 
+    def _parse_target(self) -> Optional[str]:
+        """Parse target parameter from query string."""
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+        targets = params.get('target', [])
+        return targets[0] if targets else None
+
     def do_GET(self):
         """Handle GET requests."""
         parsed = urlparse(self.path)

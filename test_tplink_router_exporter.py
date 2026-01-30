@@ -348,5 +348,33 @@ class TestNodeLabelResolution(unittest.TestCase):
             self.assertEqual(result, 'satellite')
 
 
+class TestMultiTarget(unittest.TestCase):
+    """Tests for multi-target support."""
+
+    def test_parse_target_from_query(self):
+        """Target is extracted from query parameter."""
+        handler = Mock(spec=MetricsHandler)
+        handler.path = "/metrics?target=192.168.55.1"
+
+        result = MetricsHandler._parse_target(handler)
+        self.assertEqual(result, "192.168.55.1")
+
+    def test_parse_target_returns_none_when_missing(self):
+        """Returns None when no target parameter."""
+        handler = Mock(spec=MetricsHandler)
+        handler.path = "/metrics"
+
+        result = MetricsHandler._parse_target(handler)
+        self.assertIsNone(result)
+
+    def test_parse_target_handles_multiple_params(self):
+        """Handles multiple query parameters."""
+        handler = Mock(spec=MetricsHandler)
+        handler.path = "/metrics?foo=bar&target=10.0.0.1&baz=qux"
+
+        result = MetricsHandler._parse_target(handler)
+        self.assertEqual(result, "10.0.0.1")
+
+
 if __name__ == "__main__":
     unittest.main()
