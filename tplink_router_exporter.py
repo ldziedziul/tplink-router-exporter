@@ -404,7 +404,9 @@ class TPLinkCollector:
 class MetricsHandler(BaseHTTPRequestHandler):
     """HTTP handler for Prometheus metrics endpoint."""
 
-    collector = None
+    default_password = None
+    default_username = "admin"
+    verify_ssl = False
 
     def log_message(self, format, *args):
         """Override to use logger instead of stderr."""
@@ -432,8 +434,37 @@ class MetricsHandler(BaseHTTPRequestHandler):
 
     def _serve_metrics(self):
         """Serve Prometheus metrics."""
+        target = self._parse_target()
+
+        if not target:
+            # No target specified - return simple up metric
+            self.send_response(200)
+            self.send_header('Content-Type', CONTENT_TYPE_LATEST)
+            self.end_headers()
+            self.wfile.write(b'# HELP tplink_exporter_up Exporter is running\n')
+            self.wfile.write(b'# TYPE tplink_exporter_up gauge\n')
+            self.wfile.write(b'tplink_exporter_up 1\n')
+            return
+
+        try:
+            password = get_password_for_target(target, self.default_password)
+        except ValueError as e:
+            logger.error(str(e))
+            self.send_error(400, str(e))
+            return
+
+        node_label = get_node_label(target)
+
+        collector = TPLinkCollector(
+            host=target,
+            password=password,
+            username=self.default_username,
+            verify_ssl=self.verify_ssl,
+            node_label=node_label,
+        )
+
         registry = CollectorRegistry()
-        registry.register(self.collector)
+        registry.register(collector)
 
         try:
             output = generate_latest(registry)
@@ -471,12 +502,15 @@ class MetricsHandler(BaseHTTPRequestHandler):
         self.wfile.write(b'OK')
 
 
-def run_server(host: str, port: int, collector: TPLinkCollector):
+def run_server(host: str, port: int, password: str, username: str = "admin", verify_ssl: bool = False):
     """Run the HTTP server."""
-    MetricsHandler.collector = collector
+    MetricsHandler.default_password = password
+    MetricsHandler.default_username = username
+    MetricsHandler.verify_ssl = verify_ssl
+
     server = HTTPServer((host, port), MetricsHandler)
     logger.info(f"Starting TP-Link exporter on http://{host}:{port}")
-    logger.info(f"Metrics available at http://{host}:{port}/metrics")
+    logger.info(f"Metrics available at http://{host}:{port}/metrics?target=<router_ip>")
 
     try:
         server.serve_forever()
@@ -545,19 +579,13 @@ Note: Use the local router password, not your TP-Link ID password.
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    # Build router host URL
-    router_host = args.host
-    if args.https and not router_host.startswith("https://"):
-        router_host = f"https://{router_host}"
-
-    collector = TPLinkCollector(
-        host=router_host,
+    run_server(
+        args.listen,
+        args.port,
         password=args.password,
         username=args.username,
         verify_ssl=args.verify_ssl
     )
-
-    run_server(args.listen, args.port, collector)
 
 
 if __name__ == "__main__":
