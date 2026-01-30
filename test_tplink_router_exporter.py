@@ -277,6 +277,9 @@ class TestMetricsHandler(unittest.TestCase):
         handler.send_header = Mock()
         handler.end_headers = Mock()
         handler.send_error = Mock()
+        handler.default_password = "testpass"
+        handler.default_username = "admin"
+        handler.verify_ssl = False
         return handler
 
     def test_health_endpoint(self):
@@ -290,6 +293,16 @@ class TestMetricsHandler(unittest.TestCase):
         handler = self._make_request("/")
         MetricsHandler._serve_index(handler)
         handler.send_response.assert_called_with(200)
+
+    def test_metrics_without_target_returns_up(self):
+        """Test /metrics without target returns exporter up metric."""
+        handler = self._make_request("/metrics")
+        handler._parse_target = Mock(return_value=None)
+        MetricsHandler._serve_metrics(handler)
+        handler.send_response.assert_called_with(200)
+        # Check that exporter_up was written
+        output = handler.wfile.getvalue()
+        self.assertIn(b'tplink_exporter_up 1', output)
 
 
 class TestPasswordResolution(unittest.TestCase):
