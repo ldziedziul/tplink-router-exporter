@@ -14,6 +14,7 @@ from tplink_router_exporter import (
     resolve_hostnames_batch,
     get_device_hostname,
     _is_generic_hostname,
+    get_password_for_target,
 )
 
 
@@ -268,6 +269,40 @@ class TestMetricsHandler(unittest.TestCase):
         handler = self._make_request("/")
         MetricsHandler._serve_index(handler)
         handler.send_response.assert_called_with(200)
+
+
+class TestPasswordResolution(unittest.TestCase):
+    """Tests for get_password_for_target function."""
+
+    def test_uses_target_specific_env_var(self):
+        """Target-specific env var takes precedence."""
+        with patch.dict('os.environ', {'TPLINK_PASSWORD_192_168_55_1': 'secret1'}):
+            result = get_password_for_target('192.168.55.1', 'default')
+            self.assertEqual(result, 'secret1')
+
+    def test_falls_back_to_default(self):
+        """Falls back to default password when no env var."""
+        with patch.dict('os.environ', {}, clear=True):
+            result = get_password_for_target('192.168.55.1', 'default')
+            self.assertEqual(result, 'default')
+
+    def test_env_var_with_dots_converted(self):
+        """Dots in IP are converted to underscores in env var name."""
+        with patch.dict('os.environ', {'TPLINK_PASSWORD_10_0_0_1': 'secret2'}):
+            result = get_password_for_target('10.0.0.1', 'default')
+            self.assertEqual(result, 'secret2')
+
+    def test_raises_without_password(self):
+        """Raises error when no password available."""
+        with patch.dict('os.environ', {}, clear=True):
+            with self.assertRaises(ValueError):
+                get_password_for_target('192.168.55.1', None)
+
+    def test_hostname_with_dashes_converted(self):
+        """Dashes in hostname are converted to underscores in env var name."""
+        with patch.dict('os.environ', {'TPLINK_PASSWORD_my_router_local': 'secret3'}):
+            result = get_password_for_target('my-router.local', 'default')
+            self.assertEqual(result, 'secret3')
 
 
 if __name__ == "__main__":

@@ -72,6 +72,31 @@ def get_connection_label(conn_type: Optional[Connection]) -> str:
     return CONNECTION_LABELS.get(conn_type, "unknown")
 
 
+import os
+
+
+def get_password_for_target(target: str, default_password: Optional[str]) -> str:
+    """Get password for a specific target router.
+
+    Resolution order:
+    1. Target-specific env var: TPLINK_PASSWORD_<target_sanitized>
+       (dots and dashes replaced with underscores)
+    2. Default password from --password flag
+    3. Raise ValueError if neither available
+    """
+    sanitized = target.replace('.', '_').replace('-', '_')
+    env_var_name = f"TPLINK_PASSWORD_{sanitized}"
+    password = os.environ.get(env_var_name)
+
+    if password:
+        return password
+
+    if default_password:
+        return default_password
+
+    raise ValueError(f"No password for target {target}. Set {env_var_name} or use --password")
+
+
 DNS_TIMEOUT_MS = 200
 GENERIC_HOSTNAMES = {"network device", "unknown", ""}
 
