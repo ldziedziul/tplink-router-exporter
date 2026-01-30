@@ -99,6 +99,8 @@ options:
 
 ## Prometheus Configuration
 
+### Single Router
+
 ```yaml
 scrape_configs:
   - job_name: 'tplink'
@@ -106,6 +108,50 @@ scrape_configs:
       - targets: ['localhost:9120']
     scrape_interval: 30s
 ```
+
+### Multi-Target Mode (EasyMesh / Multiple Routers)
+
+To monitor multiple routers (e.g., EasyMesh main router + satellites), use multi-target mode:
+
+```yaml
+scrape_configs:
+  - job_name: 'tplink'
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - 192.168.55.1    # Main router
+          - 192.168.55.2    # Satellite
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: localhost:9120
+    scrape_interval: 30s
+```
+
+#### Per-Target Passwords
+
+If routers have different passwords, set environment variables:
+
+```bash
+export TPLINK_PASSWORD_192_168_55_1="main_password"
+export TPLINK_PASSWORD_192_168_55_2="satellite_password"
+```
+
+The exporter checks for `TPLINK_PASSWORD_<ip_with_underscores>` first, then falls back to `--password`.
+
+#### Node Labels (Optional)
+
+Add friendly names to metrics:
+
+```bash
+export TPLINK_NODE_192_168_55_1="main"
+export TPLINK_NODE_192_168_55_2="satellite"
+```
+
+This adds a `node` label to the `tplink_router_info` metric.
 
 ## Grafana Dashboard
 
