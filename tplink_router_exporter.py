@@ -97,6 +97,17 @@ def get_password_for_target(target: str, default_password: Optional[str]) -> str
     raise ValueError(f"No password for target {target}. Set {env_var_name} or use --password")
 
 
+def get_node_label(target: str) -> Optional[str]:
+    """Get optional node label for a target router.
+
+    Returns the value of TPLINK_NODE_<target_sanitized> or None.
+    Dots and dashes in the target are replaced with underscores.
+    """
+    sanitized = target.replace('.', '_').replace('-', '_')
+    env_var_name = f"TPLINK_NODE_{sanitized}"
+    return os.environ.get(env_var_name)
+
+
 DNS_TIMEOUT_MS = 200
 GENERIC_HOSTNAMES = {"network device", "unknown", ""}
 

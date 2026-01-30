@@ -15,6 +15,7 @@ from tplink_router_exporter import (
     get_device_hostname,
     _is_generic_hostname,
     get_password_for_target,
+    get_node_label,
 )
 
 
@@ -303,6 +304,28 @@ class TestPasswordResolution(unittest.TestCase):
         with patch.dict('os.environ', {'TPLINK_PASSWORD_my_router_local': 'secret3'}):
             result = get_password_for_target('my-router.local', 'default')
             self.assertEqual(result, 'secret3')
+
+
+class TestNodeLabelResolution(unittest.TestCase):
+    """Tests for get_node_label function."""
+
+    def test_returns_env_var_value(self):
+        """Returns node label from env var."""
+        with patch.dict('os.environ', {'TPLINK_NODE_192_168_55_1': 'main'}):
+            result = get_node_label('192.168.55.1')
+            self.assertEqual(result, 'main')
+
+    def test_returns_none_when_not_set(self):
+        """Returns None when no env var set."""
+        with patch.dict('os.environ', {}, clear=True):
+            result = get_node_label('192.168.55.1')
+            self.assertIsNone(result)
+
+    def test_hostname_with_dashes_converted(self):
+        """Dashes in hostname are converted to underscores in env var name."""
+        with patch.dict('os.environ', {'TPLINK_NODE_my_router_local': 'satellite'}):
+            result = get_node_label('my-router.local')
+            self.assertEqual(result, 'satellite')
 
 
 if __name__ == "__main__":
