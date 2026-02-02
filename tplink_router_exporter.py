@@ -468,14 +468,21 @@ class MetricsHandler(BaseHTTPRequestHandler):
 
         try:
             output = generate_latest(registry)
-            self.send_response(200)
-            self.send_header('Content-Type', CONTENT_TYPE_LATEST)
-            self.send_header('Content-Length', len(output))
-            self.end_headers()
-            self.wfile.write(output)
         except Exception as e:
-            logger.error(f"Error generating metrics: {e}")
-            self.send_error(500, str(e))
+            # If metrics generation fails, return scrape_success=0
+            # This ensures Prometheus always gets valid metrics
+            logger.error(f"Error generating metrics for {target}: {e}")
+            output = (
+                b'# HELP tplink_scrape_success Whether the last scrape was successful\n'
+                b'# TYPE tplink_scrape_success gauge\n'
+                b'tplink_scrape_success 0\n'
+            )
+
+        self.send_response(200)
+        self.send_header('Content-Type', CONTENT_TYPE_LATEST)
+        self.send_header('Content-Length', len(output))
+        self.end_headers()
+        self.wfile.write(output)
 
     def _serve_index(self):
         """Serve index page."""
