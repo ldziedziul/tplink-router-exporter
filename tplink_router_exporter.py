@@ -41,7 +41,7 @@ except ImportError:
     print("Install with: pip install tplinkrouterc6u")
     sys.exit(1)
 
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 logging.basicConfig(
@@ -170,16 +170,21 @@ def get_device_hostname(device, resolved_hostnames: dict[str, str]) -> str:
     return device.hostname or "unknown"
 
 
+DEFAULT_ROUTER_TIMEOUT = (5, 15)  # (connect, read) - 5s to connect, 15s to read
+
+
 class TPLinkCollector:
     """Custom Prometheus collector for TP-Link router metrics."""
 
     def __init__(self, host: str, password: str, username: str = "admin",
-                 verify_ssl: bool = False, node_label: Optional[str] = None):
+                 verify_ssl: bool = False, node_label: Optional[str] = None,
+                 timeout: tuple = DEFAULT_ROUTER_TIMEOUT):
         self.host = host
         self.password = password
         self.username = username
         self.verify_ssl = verify_ssl
         self.node_label = node_label
+        self.timeout = timeout
         self._last_scrape_success = False
         self._last_scrape_duration = 0.0
 
@@ -190,7 +195,9 @@ class TPLinkCollector:
         else:
             host = self.host
 
-        router = TplinkRouterProvider.get_client(host, self.password, self.username)
+        router = TplinkRouterProvider.get_client(
+            host, self.password, self.username, timeout=self.timeout
+        )
         if hasattr(router, '_verify_ssl'):
             router._verify_ssl = self.verify_ssl
 
@@ -515,7 +522,7 @@ def run_server(host: str, port: int, password: str, username: str = "admin", ver
     MetricsHandler.default_username = username
     MetricsHandler.verify_ssl = verify_ssl
 
-    server = HTTPServer((host, port), MetricsHandler)
+    server = ThreadingHTTPServer((host, port), MetricsHandler)
     logger.info(f"Starting TP-Link exporter on http://{host}:{port}")
     logger.info(f"Metrics available at http://{host}:{port}/metrics?target=<router_ip>")
 

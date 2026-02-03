@@ -16,6 +16,7 @@ from tplink_router_exporter import (
     _is_generic_hostname,
     get_password_for_target,
     get_node_label,
+    DEFAULT_ROUTER_TIMEOUT,
 )
 
 
@@ -185,6 +186,34 @@ class TestTPLinkCollector(unittest.TestCase):
         self.assertEqual(collector.host, "192.168.0.1")
         self.assertEqual(collector.password, "testpass")
         self.assertEqual(collector.username, "admin")
+        self.assertEqual(collector.timeout, DEFAULT_ROUTER_TIMEOUT)
+
+    def test_init_custom_timeout(self):
+        """Test collector with custom timeout."""
+        collector = TPLinkCollector(
+            host="192.168.0.1",
+            password="testpass",
+            timeout=(3, 10),
+        )
+        self.assertEqual(collector.timeout, (3, 10))
+
+    @patch("tplink_router_exporter.TplinkRouterProvider")
+    def test_timeout_passed_to_client(self, mock_provider):
+        """Test that timeout is passed to router client."""
+        mock_router = MagicMock()
+        mock_provider.get_client.return_value = mock_router
+        mock_router.get_status.return_value = MockStatus()
+
+        collector = TPLinkCollector(
+            host="192.168.0.1",
+            password="testpass",
+            timeout=(5, 15),
+        )
+        list(collector.collect())
+
+        mock_provider.get_client.assert_called_once()
+        call_kwargs = mock_provider.get_client.call_args
+        self.assertEqual(call_kwargs.kwargs.get('timeout'), (5, 15))
 
     @patch("tplink_router_exporter.TplinkRouterProvider")
     def test_collect_success(self, mock_provider):
