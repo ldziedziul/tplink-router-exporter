@@ -215,14 +215,20 @@ class TPLinkCollector:
         """Collect metrics from the router."""
         start_time = time.time()
 
+        # Node label for all metrics (empty list if not set)
+        node_labels = ['node'] if self.node_label else []
+        node_values = [self.node_label] if self.node_label else []
+
         # Scrape metrics
         scrape_success = GaugeMetricFamily(
             'tplink_scrape_success',
-            'Whether the last scrape was successful (1 = success, 0 = failure)'
+            'Whether the last scrape was successful (1 = success, 0 = failure)',
+            labels=node_labels
         )
         scrape_duration = GaugeMetricFamily(
             'tplink_scrape_duration_seconds',
-            'Duration of the last scrape in seconds'
+            'Duration of the last scrape in seconds',
+            labels=node_labels
         )
 
         try:
@@ -232,23 +238,19 @@ class TPLinkCollector:
             logger.error(f"Failed to scrape router: {e}")
             self._last_scrape_success = False
             self._last_scrape_duration = time.time() - start_time
-            scrape_success.add_metric([], 0)
-            scrape_duration.add_metric([], self._last_scrape_duration)
+            scrape_success.add_metric(node_values, 0)
+            scrape_duration.add_metric(node_values, self._last_scrape_duration)
             yield scrape_success
             yield scrape_duration
             return
 
-        # Router info - add node label if present
-        info_labels = ['wan_ip', 'lan_ip', 'connection_type']
+        # Router info
+        info_labels = ['wan_ip', 'lan_ip', 'connection_type'] + node_labels
         info_values = [
             status.wan_ipv4_addr or '',
             status.lan_ipv4_addr or '',
             status.conn_type or ''
-        ]
-
-        if self.node_label:
-            info_labels.append('node')
-            info_values.append(self.node_label)
+        ] + node_values
 
         router_info = GaugeMetricFamily(
             'tplink_router_info',
@@ -262,77 +264,85 @@ class TPLinkCollector:
         if status.cpu_usage is not None:
             cpu_usage = GaugeMetricFamily(
                 'tplink_cpu_usage_ratio',
-                'Router CPU usage (0-1)'
+                'Router CPU usage (0-1)',
+                labels=node_labels
             )
-            cpu_usage.add_metric([], status.cpu_usage)
+            cpu_usage.add_metric(node_values, status.cpu_usage)
             yield cpu_usage
 
         # Memory usage
         if status.mem_usage is not None:
             mem_usage = GaugeMetricFamily(
                 'tplink_memory_usage_ratio',
-                'Router memory usage (0-1)'
+                'Router memory usage (0-1)',
+                labels=node_labels
             )
-            mem_usage.add_metric([], status.mem_usage)
+            mem_usage.add_metric(node_values, status.mem_usage)
             yield mem_usage
 
         # Client counts
         clients_total = GaugeMetricFamily(
             'tplink_clients_total',
-            'Total number of connected clients'
+            'Total number of connected clients',
+            labels=node_labels
         )
-        clients_total.add_metric([], status.clients_total or 0)
+        clients_total.add_metric(node_values, status.clients_total or 0)
         yield clients_total
 
         wifi_clients = GaugeMetricFamily(
             'tplink_wifi_clients_total',
-            'Number of WiFi clients'
+            'Number of WiFi clients',
+            labels=node_labels
         )
-        wifi_clients.add_metric([], status.wifi_clients_total or 0)
+        wifi_clients.add_metric(node_values, status.wifi_clients_total or 0)
         yield wifi_clients
 
         wired_clients = GaugeMetricFamily(
             'tplink_wired_clients_total',
-            'Number of wired clients'
+            'Number of wired clients',
+            labels=node_labels
         )
-        wired_clients.add_metric([], status.wired_total or 0)
+        wired_clients.add_metric(node_values, status.wired_total or 0)
         yield wired_clients
 
         guest_clients = GaugeMetricFamily(
             'tplink_guest_clients_total',
-            'Number of guest network clients'
+            'Number of guest network clients',
+            labels=node_labels
         )
-        guest_clients.add_metric([], status.guest_clients_total or 0)
+        guest_clients.add_metric(node_values, status.guest_clients_total or 0)
         yield guest_clients
 
         if status.iot_clients_total is not None:
             iot_clients = GaugeMetricFamily(
                 'tplink_iot_clients_total',
-                'Number of IoT network clients'
+                'Number of IoT network clients',
+                labels=node_labels
             )
-            iot_clients.add_metric([], status.iot_clients_total)
+            iot_clients.add_metric(node_values, status.iot_clients_total)
             yield iot_clients
 
         # WiFi enabled states
+        wifi_labels = ['band', 'network_type'] + node_labels
         wifi_enabled = GaugeMetricFamily(
             'tplink_wifi_enabled',
             'WiFi network enabled state (1 = enabled, 0 = disabled)',
-            labels=['band', 'network_type']
+            labels=wifi_labels
         )
-        wifi_enabled.add_metric(['2.4ghz', 'host'], 1 if status.wifi_2g_enable else 0)
+        wifi_enabled.add_metric(['2.4ghz', 'host'] + node_values, 1 if status.wifi_2g_enable else 0)
         if status.wifi_5g_enable is not None:
-            wifi_enabled.add_metric(['5ghz', 'host'], 1 if status.wifi_5g_enable else 0)
+            wifi_enabled.add_metric(['5ghz', 'host'] + node_values, 1 if status.wifi_5g_enable else 0)
         if status.wifi_6g_enable is not None:
-            wifi_enabled.add_metric(['6ghz', 'host'], 1 if status.wifi_6g_enable else 0)
-        wifi_enabled.add_metric(['2.4ghz', 'guest'], 1 if status.guest_2g_enable else 0)
+            wifi_enabled.add_metric(['6ghz', 'host'] + node_values, 1 if status.wifi_6g_enable else 0)
+        wifi_enabled.add_metric(['2.4ghz', 'guest'] + node_values, 1 if status.guest_2g_enable else 0)
         if status.guest_5g_enable is not None:
-            wifi_enabled.add_metric(['5ghz', 'guest'], 1 if status.guest_5g_enable else 0)
+            wifi_enabled.add_metric(['5ghz', 'guest'] + node_values, 1 if status.guest_5g_enable else 0)
         if status.guest_6g_enable is not None:
-            wifi_enabled.add_metric(['6ghz', 'guest'], 1 if status.guest_6g_enable else 0)
+            wifi_enabled.add_metric(['6ghz', 'guest'] + node_values, 1 if status.guest_6g_enable else 0)
         yield wifi_enabled
 
         # Per-device metrics
-        device_labels = ['mac', 'hostname', 'ip', 'connection_type']
+        device_labels = ['mac', 'hostname', 'ip', 'connection_type'] + node_labels
 
         device_active = GaugeMetricFamily(
             'tplink_device_active',
@@ -374,7 +384,7 @@ class TPLinkCollector:
                 get_device_hostname(device, resolved_hostnames),
                 device.ipaddr or 'unknown',
                 get_connection_label(device.type)
-            ]
+            ] + node_values
 
             device_active.add_metric(labels, 1 if device.active else 0)
 
@@ -402,8 +412,8 @@ class TPLinkCollector:
 
         # Scrape success metrics
         self._last_scrape_duration = time.time() - start_time
-        scrape_success.add_metric([], 1)
-        scrape_duration.add_metric([], self._last_scrape_duration)
+        scrape_success.add_metric(node_values, 1)
+        scrape_duration.add_metric(node_values, self._last_scrape_duration)
         yield scrape_success
         yield scrape_duration
 
